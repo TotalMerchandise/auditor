@@ -8,6 +8,7 @@ use DH\Auditor\Provider\ConfigurationInterface;
 use DH\Auditor\Provider\Doctrine\Persistence\Helper\DoctrineHelper;
 use DH\Auditor\Provider\Doctrine\Persistence\Schema\SchemaManager;
 use DH\Auditor\Provider\Doctrine\Service\AuditingService;
+use Symfony\Component\Cache\Adapter\ApcuAdapter;
 use Symfony\Component\OptionsResolver\OptionsResolver;
 
 /**
@@ -21,7 +22,10 @@ class Configuration implements ConfigurationInterface
 
     private string $tableSuffix;
 
-    private array $ignoredColumns;
+    /**
+     * @var array<string>
+     */
+    private array $ignoredColumns = [];
 
     private ?array $entities = null;
 
@@ -34,7 +38,7 @@ class Configuration implements ConfigurationInterface
     private bool $initialized = false;
 
     /**
-     * @var callable
+     * @var null|callable
      */
     private $storageMapper;
 
@@ -167,13 +171,31 @@ class Configuration implements ConfigurationInterface
      */
     public function getEntities(): array
     {
+        $apcuAdapter = null;
+        $entitiesCacheItem = null;
+
         if ($this->initialized && null !== $this->entities) {
             return $this->entities;
         }
+
+        if (ApcuAdapter::isSupported()) {
+            $apcuAdapter = new ApcuAdapter('dh_auditor');
+
+            $entitiesCacheItem = $apcuAdapter->getItem('entities');
+
+            if ($entitiesCacheItem->isHit()) {
+                $entities = $entitiesCacheItem->get();
+
+                if (is_array($entities)) {
+                    return $entities;
+                }
+            }
+        }
+
         if (null !== $this->provider) {
             $schemaManager = new SchemaManager($this->provider);
 
-            /** @var AuditingService[] $auditingServices */
+            /** @var array<AuditingService> $auditingServices */
             $auditingServices = $this->provider->getAuditingServices();
             foreach ($auditingServices as $auditingService) {
                 $entityManager = $auditingService->getEntityManager();
@@ -206,6 +228,11 @@ class Configuration implements ConfigurationInterface
                 }
             }
             $this->initialized = true;
+        }
+
+        if (null !== $apcuAdapter && null !== $entitiesCacheItem) {
+            $entitiesCacheItem->set($this->entities);
+            $apcuAdapter->save($entitiesCacheItem);
         }
 
         return $this->entities ?? [];
