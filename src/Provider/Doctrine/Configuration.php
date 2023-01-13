@@ -8,7 +8,7 @@ use DH\Auditor\Provider\ConfigurationInterface;
 use DH\Auditor\Provider\Doctrine\Persistence\Helper\DoctrineHelper;
 use DH\Auditor\Provider\Doctrine\Persistence\Schema\SchemaManager;
 use DH\Auditor\Provider\Doctrine\Service\AuditingService;
-use Symfony\Component\Cache\Adapter\ApcuAdapter;
+use Psr\Cache\CacheItemPoolInterface;
 use Symfony\Component\OptionsResolver\OptionsResolver;
 
 /**
@@ -43,6 +43,8 @@ class Configuration implements ConfigurationInterface
     private $storageMapper;
 
     private array $annotationLoaded = [];
+
+    private ?CacheItemPoolInterface $metadataCache = null;
 
     public function __construct(array $options)
     {
@@ -171,22 +173,22 @@ class Configuration implements ConfigurationInterface
      */
     public function getEntities(): array
     {
-        $apcuAdapter = null;
-        $entitiesCacheItem = null;
-
         if ($this->initialized && null !== $this->entities) {
             return $this->entities;
         }
 
-        if (ApcuAdapter::isSupported()) {
-            $apcuAdapter = new ApcuAdapter('dh_auditor');
+        $entitiesCacheItem = null;
 
-            $entitiesCacheItem = $apcuAdapter->getItem('entities');
+        if (null !== $this->metadataCache) {
+            $entitiesCacheItem = $this->metadataCache->getItem('dh_auditor_entites');
 
             if ($entitiesCacheItem->isHit()) {
                 $entities = $entitiesCacheItem->get();
 
                 if (is_array($entities)) {
+                    $this->entities = $entities;
+                    $this->initialized = true;
+
                     return $entities;
                 }
             }
@@ -230,9 +232,9 @@ class Configuration implements ConfigurationInterface
             $this->initialized = true;
         }
 
-        if (null !== $apcuAdapter && null !== $entitiesCacheItem) {
+        if (null !== $this->metadataCache) {
             $entitiesCacheItem->set($this->entities);
-            $apcuAdapter->save($entitiesCacheItem);
+            $this->metadataCache->save($entitiesCacheItem);
         }
 
         return $this->entities ?? [];
@@ -294,5 +296,17 @@ class Configuration implements ConfigurationInterface
     {
         $this->provider = $provider;
         $this->initialized = false;
+    }
+
+    public function getMetadataCache(): ?CacheItemPoolInterface
+    {
+        return $this->metadataCache;
+    }
+
+    public function setMetadataCache(?CacheItemPoolInterface $metadataCache): self
+    {
+        $this->metadataCache = $metadataCache;
+
+        return $this;
     }
 }

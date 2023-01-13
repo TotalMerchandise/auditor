@@ -22,6 +22,7 @@ use DH\Auditor\Provider\Service\AuditingServiceInterface;
 use DH\Auditor\Provider\Service\StorageServiceInterface;
 use Doctrine\ORM\EntityManagerInterface;
 use Exception;
+use Psr\Cache\CacheItemPoolInterface;
 
 /**
  * @see \DH\Auditor\Tests\Provider\Doctrine\DoctrineProviderTest
@@ -276,6 +277,15 @@ class DoctrineProvider extends AbstractProvider
         if (null === $this->configuration->getStorageMapper() && $this->isStorageMapperRequired()) {
             throw new ProviderException('You must provide a mapper callback to map audits to storage.');
         }
+
+        return $this;
+    }
+
+    public function registerMetadataCacheService(CacheItemPoolInterface $service): ProviderInterface
+    {
+        \assert($this->configuration instanceof Configuration);
+
+        $this->configuration->setMetadataCache($service);
 
         return $this;
     }

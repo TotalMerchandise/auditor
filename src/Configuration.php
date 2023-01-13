@@ -53,12 +53,14 @@ class Configuration
                 'role_checker' => null,
                 'user_provider' => null,
                 'security_provider' => null,
+                'metadata_cache' => null,
             ])
             ->setAllowedTypes('enabled', 'bool')
             ->setAllowedTypes('timezone', 'string')
             ->setAllowedTypes('role_checker', ['null', 'string', 'callable'])
             ->setAllowedTypes('user_provider', ['null', 'string', 'callable'])
             ->setAllowedTypes('security_provider', ['null', 'string', 'callable'])
+            ->setAllowedTypes('metadata_cache', ['null', 'string'])
         ;
     }
 
