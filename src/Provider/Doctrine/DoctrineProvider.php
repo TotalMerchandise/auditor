@@ -266,7 +266,7 @@ class DoctrineProvider extends AbstractProvider
         } else {
             $annotationEntities = $annotationLoader->load();
         }
-        $this->configuration->setEntities(array_merge($entities, $annotationEntities));
+        $this->configuration->setEntities($entities + $annotationEntities);
 
         return $this;
     }
