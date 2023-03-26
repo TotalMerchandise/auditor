@@ -224,8 +224,15 @@ class DoctrineProvider extends AbstractProvider
 
         // are columns excluded and is field part of them?
         // yes => $field is not audited
-        return !(isset($entityOptions['ignored_columns'])
-            && \in_array($field, $entityOptions['ignored_columns'], true));
+        if (!isset($entityOptions['ignored_columns'])) {
+            return true;
+        }
+
+        if (!in_array($field, $entityOptions['ignored_columns'], true)) {
+            return true;
+        }
+
+        return false;
     }
 
     public function supportsStorage(): bool
