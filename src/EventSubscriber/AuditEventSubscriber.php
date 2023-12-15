@@ -12,7 +12,7 @@ use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 /**
  * @see \DH\Auditor\Tests\EventSubscriber\AuditEventSubscriberTest
  */
-class AuditEventSubscriber implements EventSubscriberInterface
+final class AuditEventSubscriber implements EventSubscriberInterface
 {
     private Auditor $auditor;
 
@@ -36,7 +36,7 @@ class AuditEventSubscriber implements EventSubscriberInterface
             if ($provider->supportsStorage()) {
                 try {
                     $provider->persist($event);
-                } catch (Exception $e) {
+                } catch (Exception) {
                     // do nothing to ensure other providers are called
                 }
             }

@@ -6,38 +6,24 @@ namespace DH\Auditor\Tests\Provider\Doctrine\Fixtures\Entity\Standard\Blog;
 
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
+use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Stringable;
 
-/**
- * @ORM\Entity
- * @ORM\Table(name="tag")
- */
 #[ORM\Entity]
 #[ORM\Table(name: 'tag')]
 class Tag implements Stringable
 {
-    /**
-     * @ORM\Id
-     * @ORM\Column(type="integer", options={"unsigned": true})
-     * @ORM\GeneratedValue(strategy="IDENTITY")
-     */
     #[ORM\Id]
-    #[ORM\Column(type: 'integer', options: ['unsigned' => true])]
+    #[ORM\Column(type: Types::INTEGER, options: ['unsigned' => true])]
     #[ORM\GeneratedValue(strategy: 'IDENTITY')]
-    protected $id;
+    protected ?int $id = null;
 
-    /**
-     * @ORM\Column(type="string", length=255)
-     */
-    #[ORM\Column(type: 'string', length: 255)]
-    protected $title;
+    #[ORM\Column(type: Types::STRING, length: 255)]
+    protected ?string $title = null;
 
-    /**
-     * @ORM\ManyToMany(targetEntity="Post", mappedBy="tags", cascade={"persist", "remove"})
-     */
     #[ORM\ManyToMany(targetEntity: 'Post', mappedBy: 'tags', cascade: ['persist', 'remove'])]
-    protected $posts;
+    protected Collection $posts;
 
     public function __construct()
     {
@@ -66,8 +52,6 @@ class Tag implements Stringable
 
     /**
      * Get the value of id.
-     *
-     * @return int
      */
     public function getId(): ?int
     {
@@ -86,8 +70,6 @@ class Tag implements Stringable
 
     /**
      * Get the value of title.
-     *
-     * @return string
      */
     public function getTitle(): ?string
     {

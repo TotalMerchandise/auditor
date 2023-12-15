@@ -14,7 +14,7 @@ use Symfony\Component\OptionsResolver\OptionsResolver;
 /**
  * @see \DH\Auditor\Tests\Provider\Doctrine\ConfigurationTest
  */
-class Configuration implements ConfigurationInterface
+final class Configuration implements ConfigurationInterface
 {
     private ?DoctrineProvider $provider = null;
 
@@ -67,31 +67,6 @@ class Configuration implements ConfigurationInterface
         $this->auditingServices = $config['auditing_services'];
         $this->isViewerEnabled = $config['viewer'];
         $this->storageMapper = $config['storage_mapper'];
-    }
-
-    public function configureOptions(OptionsResolver $resolver): void
-    {
-        // https://symfony.com/doc/current/components/options_resolver.html
-        $resolver
-            ->setDefaults([
-                'table_prefix' => '',
-                'table_suffix' => '_audit',
-                'ignored_columns' => [],
-                'entities' => [],
-                'storage_services' => [],
-                'auditing_services' => [],
-                'viewer' => true,
-                'storage_mapper' => null,
-            ])
-            ->setAllowedTypes('table_prefix', 'string')
-            ->setAllowedTypes('table_suffix', 'string')
-            ->setAllowedTypes('ignored_columns', 'array')
-            ->setAllowedTypes('entities', 'array')
-            ->setAllowedTypes('storage_services', 'array')
-            ->setAllowedTypes('auditing_services', 'array')
-            ->setAllowedTypes('viewer', 'bool')
-            ->setAllowedTypes('storage_mapper', ['null', 'string', 'callable'])
-        ;
     }
 
     /**
@@ -173,11 +148,11 @@ class Configuration implements ConfigurationInterface
      */
     public function getEntities(): array
     {
+        $entitiesCacheItem = null;
+
         if ($this->initialized && null !== $this->entities) {
             return $this->entities;
         }
-
-        $entitiesCacheItem = null;
 
         if (null !== $this->metadataCache) {
             $entitiesCacheItem = $this->metadataCache->getItem('dh_auditor_entites');
@@ -194,7 +169,7 @@ class Configuration implements ConfigurationInterface
             }
         }
 
-        if (null !== $this->provider) {
+        if ($this->provider instanceof \DH\Auditor\Provider\Doctrine\DoctrineProvider) {
             $schemaManager = new SchemaManager($this->provider);
 
             /** @var array<AuditingService> $auditingServices */
@@ -210,7 +185,7 @@ class Configuration implements ConfigurationInterface
                 }
 
                 \assert(null !== $this->entities);
-                foreach ($this->entities as $entity => $config) {
+                foreach (array_keys($this->entities) as $entity) {
                     $meta = $entityManager->getClassMetadata(DoctrineHelper::getRealClassName($entity));
                     $entityTableName = $meta->getTableName();
                     $namespaceName = $meta->getSchemaName() ?? '';
@@ -218,17 +193,18 @@ class Configuration implements ConfigurationInterface
                     $computedTableName = $schemaManager->resolveTableName($entityTableName, $namespaceName, $platform);
                     $this->entities[$entity]['table_schema'] = $namespaceName;
                     $this->entities[$entity]['table_name'] = $entityTableName;
-//                    $this->entities[$entity]['computed_table_name'] = $entityTableName;
+                    //                    $this->entities[$entity]['computed_table_name'] = $entityTableName;
                     $this->entities[$entity]['computed_table_name'] = $computedTableName;
                     $this->entities[$entity]['audit_table_schema'] = $namespaceName;
                     $this->entities[$entity]['audit_table_name'] = $schemaManager->computeAuditTablename($entityTableName, $this);
-//                    $this->entities[$entity]['computed_audit_table_name'] = $schemaManager->computeAuditTablename($this->entities[$entity], $this, $platform);
+                    //                    $this->entities[$entity]['computed_audit_table_name'] = $schemaManager->computeAuditTablename($this->entities[$entity], $this, $platform);
                     $this->entities[$entity]['computed_audit_table_name'] = $schemaManager->computeAuditTablename(
                         $computedTableName,
                         $this
                     );
                 }
             }
+
             $this->initialized = true;
         }
 
@@ -282,7 +258,7 @@ class Configuration implements ConfigurationInterface
     /**
      * @return null|callable|string
      */
-    public function getStorageMapper()
+    public function getStorageMapper(): mixed
     {
         return $this->storageMapper;
     }
@@ -296,6 +272,31 @@ class Configuration implements ConfigurationInterface
     {
         $this->provider = $provider;
         $this->initialized = false;
+    }
+
+    private function configureOptions(OptionsResolver $resolver): void
+    {
+        // https://symfony.com/doc/current/components/options_resolver.html
+        $resolver
+            ->setDefaults([
+                'table_prefix' => '',
+                'table_suffix' => '_audit',
+                'ignored_columns' => [],
+                'entities' => [],
+                'storage_services' => [],
+                'auditing_services' => [],
+                'viewer' => true,
+                'storage_mapper' => null,
+            ])
+            ->setAllowedTypes('table_prefix', 'string')
+            ->setAllowedTypes('table_suffix', 'string')
+            ->setAllowedTypes('ignored_columns', 'array')
+            ->setAllowedTypes('entities', 'array')
+            ->setAllowedTypes('storage_services', 'array')
+            ->setAllowedTypes('auditing_services', 'array')
+            ->setAllowedTypes('viewer', 'bool')
+            ->setAllowedTypes('storage_mapper', ['null', 'string', 'callable'])
+        ;
     }
 
     public function getMetadataCache(): ?CacheItemPoolInterface

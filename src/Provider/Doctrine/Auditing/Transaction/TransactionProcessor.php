@@ -19,7 +19,7 @@ use Doctrine\ORM\Mapping\ClassMetadata;
 /**
  * @see \DH\Auditor\Tests\Provider\Doctrine\Auditing\Transaction\TransactionProcessorTest
  */
-class TransactionProcessor implements TransactionProcessorInterface
+final class TransactionProcessor implements TransactionProcessorInterface
 {
     use AuditTrait;
 
@@ -76,7 +76,7 @@ class TransactionProcessor implements TransactionProcessorInterface
         $diff = $this->diff($entityManager, $entity, $ch);
         unset($diff['@source']);
 
-        if (0 === \count($diff)) {
+        if ([] === $diff) {
             return; // if there is no entity diff, do not log it
         }
 
@@ -96,10 +96,8 @@ class TransactionProcessor implements TransactionProcessorInterface
 
     /**
      * Adds a remove entry to the audit table.
-     *
-     * @param mixed $id
      */
-    private function remove(EntityManagerInterface $entityManager, object $entity, $id, string $transactionHash): void
+    private function remove(EntityManagerInterface $entityManager, object $entity, mixed $id, string $transactionHash): void
     {
         $meta = $entityManager->getClassMetadata(DoctrineHelper::getRealClassName($entity));
         $this->audit([
@@ -211,6 +209,9 @@ class TransactionProcessor implements TransactionProcessorInterface
         $schema = $data['schema'] ? $data['schema'].'.' : '';
         $auditTable = $schema.$configuration->getTablePrefix().$data['table'].$configuration->getTableSuffix();
         $dt = new DateTimeImmutable('now', new DateTimeZone($this->provider->getAuditor()->getConfiguration()->getTimezone()));
+        $diff = $data['diff'];
+        $convertCharEncoding = (\is_string($diff) || \is_array($diff));
+        $diff = $convertCharEncoding ? mb_convert_encoding($diff, 'UTF-8', 'UTF-8') : $diff;
 
         $payload = [
             'entity' => $data['entity'],
@@ -219,7 +220,7 @@ class TransactionProcessor implements TransactionProcessorInterface
             'object_id' => (string) $data['id'],
             'discriminator' => $data['discriminator'],
             'transaction_hash' => (string) $data['transaction_hash'],
-            'diffs' => json_encode($data['diff'], JSON_THROW_ON_ERROR),
+            'diffs' => json_encode($diff, JSON_THROW_ON_ERROR),
             'blame_id' => $data['blame']['user_id'],
             'blame_user' => $data['blame']['username'],
             'blame_user_fqdn' => $data['blame']['user_fqdn'],

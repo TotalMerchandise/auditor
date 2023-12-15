@@ -11,7 +11,7 @@ use DH\Auditor\Transaction\TransactionHydratorInterface;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\PersistentCollection;
 
-class TransactionHydrator implements TransactionHydratorInterface
+final class TransactionHydrator implements TransactionHydratorInterface
 {
     use AuditTrait;
 
@@ -86,7 +86,7 @@ class TransactionHydrator implements TransactionHydratorInterface
             if (null !== $owner && $this->provider->isAudited($owner)) {
                 $mapping = $collection->getMapping();
 
-                if (null === $mapping) {
+                if (!\is_array($mapping)) {
                     continue;
                 }
 
@@ -126,7 +126,7 @@ class TransactionHydrator implements TransactionHydratorInterface
             if (null !== $owner && $this->provider->isAudited($owner)) {
                 $mapping = $collection->getMapping();
 
-                if (null === $mapping) {
+                if (!\is_array($mapping)) {
                     continue;
                 }
 

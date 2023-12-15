@@ -9,24 +9,24 @@ use Symfony\Component\OptionsResolver\OptionsResolver;
 /**
  * @see \DH\Auditor\Tests\ConfigurationTest
  */
-class Configuration
+final class Configuration
 {
     private bool $enabled;
 
     private string $timezone;
 
     /**
-     * @var callable
+     * @var null|callable
      */
     private $userProvider;
 
     /**
-     * @var callable
+     * @var null|callable
      */
     private $roleChecker;
 
     /**
-     * @var callable
+     * @var null|callable
      */
     private $securityProvider;
 
@@ -41,27 +41,6 @@ class Configuration
         $this->userProvider = $config['user_provider'];
         $this->securityProvider = $config['security_provider'];
         $this->roleChecker = $config['role_checker'];
-    }
-
-    public function configureOptions(OptionsResolver $resolver): void
-    {
-        // https://symfony.com/doc/current/components/options_resolver.html
-        $resolver
-            ->setDefaults([
-                'enabled' => true,
-                'timezone' => 'UTC',
-                'role_checker' => null,
-                'user_provider' => null,
-                'security_provider' => null,
-                'metadata_cache' => null,
-            ])
-            ->setAllowedTypes('enabled', 'bool')
-            ->setAllowedTypes('timezone', 'string')
-            ->setAllowedTypes('role_checker', ['null', 'string', 'callable'])
-            ->setAllowedTypes('user_provider', ['null', 'string', 'callable'])
-            ->setAllowedTypes('security_provider', ['null', 'string', 'callable'])
-            ->setAllowedTypes('metadata_cache', ['null', 'string'])
-        ;
     }
 
     /**
@@ -134,5 +113,26 @@ class Configuration
     public function getRoleChecker(): ?callable
     {
         return $this->roleChecker;
+    }
+
+    private function configureOptions(OptionsResolver $resolver): void
+    {
+        // https://symfony.com/doc/current/components/options_resolver.html
+        $resolver
+            ->setDefaults([
+                'enabled' => true,
+                'timezone' => 'UTC',
+                'role_checker' => null,
+                'user_provider' => null,
+                'security_provider' => null,
+                'metadata_cache' => null,
+            ])
+            ->setAllowedTypes('enabled', 'bool')
+            ->setAllowedTypes('timezone', 'string')
+            ->setAllowedTypes('role_checker', ['null', 'string', 'callable'])
+            ->setAllowedTypes('user_provider', ['null', 'string', 'callable'])
+            ->setAllowedTypes('security_provider', ['null', 'string', 'callable'])
+            ->setAllowedTypes('metadata_cache', ['null', 'string'])
+        ;
     }
 }

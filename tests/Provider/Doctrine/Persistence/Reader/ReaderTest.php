@@ -24,9 +24,8 @@ use Symfony\Component\OptionsResolver\Exception\InvalidArgumentException as Opti
 
 /**
  * @internal
- *
- * @small
  */
+#[\PHPUnit\Framework\Attributes\Small]
 final class ReaderTest extends TestCase
 {
     use BlogSchemaSetupTrait;
@@ -66,9 +65,7 @@ final class ReaderTest extends TestCase
         self::assertSame('comment', $reader->getEntityTableName(Comment::class), 'tablename is ok.');
     }
 
-    /**
-     * @depends testGetEntityTableName
-     */
+    #[\PHPUnit\Framework\Attributes\Depends('testGetEntityTableName')]
     public function testGetEntityTableAuditName(): void
     {
         $entities = [
@@ -99,11 +96,7 @@ final class ReaderTest extends TestCase
         self::assertIsString($audits[0]->getUserFqdn());
         self::assertSame('main', $audits[0]->getUserFirewall());
         self::assertIsString($audits[0]->getIp());
-        if (method_exists(self::class, 'assertMatchesRegularExpression')) {
-            self::assertMatchesRegularExpression('#\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}#', $audits[0]->getCreatedAt());
-        } else {
-            self::assertMatchesRegularExpression('#\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}#', $audits[0]->getCreatedAt());
-        }
+        self::assertInstanceOf(DateTimeImmutable::class, $audits[0]->getCreatedAt());
 
         $expected = [
             'Inserted DH\\Auditor\\Tests\\Provider\\Doctrine\\Fixtures\\Entity\\Standard\\Blog\\Author#3: [email: luke.skywalker@gmail.com, fullname: Luke Skywalker]',
@@ -118,8 +111,8 @@ final class ReaderTest extends TestCase
         /** @var Entry[] $audits */
         $audits = $reader->createQuery(Author::class)->resetOrderBy()->execute();
         self::assertCount(\count($expected), $audits, 'Expected audits count is ok.');
-        for ($i = 0; $i < \count($expected); ++$i) {
-            self::assertSame($expected[$i], self::explain($audits[$i], Author::class));
+        foreach ($expected as $i => $singleExpected) {
+            self::assertSame($singleExpected, self::explain($audits[$i], Author::class));
         }
 
         $expected = [
@@ -149,8 +142,8 @@ final class ReaderTest extends TestCase
         /** @var Entry[] $audits */
         $audits = $reader->createQuery(Post::class)->resetOrderBy()->execute();
         self::assertCount(\count($expected), $audits, 'Expected audits count is ok.');
-        for ($i = 0; $i < \count($expected); ++$i) {
-            self::assertSame($expected[$i], self::explain($audits[$i], Post::class));
+        foreach ($expected as $i => $singleExpected) {
+            self::assertSame($singleExpected, self::explain($audits[$i], Post::class));
         }
 
         $expected = [
@@ -162,8 +155,8 @@ final class ReaderTest extends TestCase
         /** @var Entry[] $audits */
         $audits = $reader->createQuery(Comment::class)->resetOrderBy()->execute();
         self::assertCount(\count($expected), $audits, 'Expected audits count is ok.');
-        for ($i = 0; $i < \count($expected); ++$i) {
-            self::assertSame($expected[$i], self::explain($audits[$i], Comment::class));
+        foreach ($expected as $i => $singleExpected) {
+            self::assertSame($singleExpected, self::explain($audits[$i], Comment::class));
         }
 
         $expected = [
@@ -187,8 +180,8 @@ final class ReaderTest extends TestCase
         /** @var Entry[] $audits */
         $audits = $reader->createQuery(Tag::class)->resetOrderBy()->execute();
         self::assertCount(\count($expected), $audits, 'Expected audits count is ok.');
-        for ($i = 0; $i < \count($expected); ++$i) {
-            self::assertSame($expected[$i], self::explain($audits[$i], Tag::class));
+        foreach ($expected as $i => $singleExpected) {
+            self::assertSame($singleExpected, self::explain($audits[$i], Tag::class));
         }
 
         $this->expectException(OptionsResolverInvalidArgumentException::class);
@@ -198,14 +191,11 @@ final class ReaderTest extends TestCase
         $reader->createQuery(Author::class, ['page_size' => -1])->execute();
     }
 
-    /**
-     * @depends testGetAudits
-     */
+    #[\PHPUnit\Framework\Attributes\Depends('testGetAudits')]
     public function testGetAuditsPager(): void
     {
         $reader = $this->createReader();
 
-        /** @var Entry[] $audits */
         $pager = $reader->paginate($reader->createQuery(Author::class), 1, 2);
         self::assertIsArray($pager);
         self::assertFalse($pager['hasPreviousPage'], 'Pager is at page 1.');
@@ -225,13 +215,12 @@ final class ReaderTest extends TestCase
         $query = $reader->createQuery(Author::class);
         $query->addFilter(new SimpleFilter('object_id', 1));
         $query->addFilter(new SimpleFilter('object_id', 2));
+
         $audits = $query->execute();
         self::assertCount(4, $audits);
     }
 
-    /**
-     * @depends testGetAudits
-     */
+    #[\PHPUnit\Framework\Attributes\Depends('testGetAudits')]
     public function testGetAuditsByDate(): void
     {
         $reader = $this->createReader();
@@ -254,8 +243,8 @@ final class ReaderTest extends TestCase
             ->execute()
         ;
         self::assertCount(\count($expected), $audits, 'Expected audits count is ok.');
-        for ($i = 0; $i < \count($expected); ++$i) {
-            self::assertSame($expected[$i], self::explain($audits[$i], Author::class));
+        foreach ($expected as $i => $singleExpected) {
+            self::assertSame($singleExpected, self::explain($audits[$i], Author::class));
         }
 
         /** @var Entry[] $audits */
@@ -282,21 +271,16 @@ final class ReaderTest extends TestCase
         ;
     }
 
-    /**
-     * @depends testGetAudits
-     */
+    #[\PHPUnit\Framework\Attributes\Depends('testGetAudits')]
     public function testGetAuditsCount(): void
     {
         $reader = $this->createReader();
 
-        /** @var Entry[] $audits */
         $count = $reader->createQuery(Author::class)->count();
         self::assertSame(7, $count, 'count is ok.');
     }
 
-    /**
-     * @depends testGetAudits
-     */
+    #[\PHPUnit\Framework\Attributes\Depends('testGetAudits')]
     public function testGetAuditsHonorsId(): void
     {
         $reader = $this->createReader();
@@ -318,9 +302,7 @@ final class ReaderTest extends TestCase
         self::assertSame([], $audits, 'no result when id is invalid.');
     }
 
-    /**
-     * @depends testGetAudits
-     */
+    #[\PHPUnit\Framework\Attributes\Depends('testGetAudits')]
     public function testGetAuditsHonorsPageSize(): void
     {
         $reader = $this->createReader();
@@ -347,9 +329,7 @@ final class ReaderTest extends TestCase
         $reader->createQuery(Author::class, ['page' => 1, 'page_size' => -1])->execute();
     }
 
-    /**
-     * @depends testGetAudits
-     */
+    #[\PHPUnit\Framework\Attributes\Depends('testGetAudits')]
     public function testGetAuditsHonorsFilter(): void
     {
         $reader = $this->createReader();
@@ -375,9 +355,7 @@ final class ReaderTest extends TestCase
         self::assertCount(0, $audits, 'result count is ok.');
     }
 
-    /**
-     * @depends testGetAudits
-     */
+    #[\PHPUnit\Framework\Attributes\Depends('testGetAudits')]
     public function testGetAuditByTransactionHash(): void
     {
         $reader = $this->createReader();
@@ -421,9 +399,7 @@ final class ReaderTest extends TestCase
         self::assertCount(2, $audits, 'result count is ok.');
     }
 
-    /**
-     * @depends testGetAuditByTransactionHash
-     */
+    #[\PHPUnit\Framework\Attributes\Depends('testGetAuditByTransactionHash')]
     public function testGetAllAuditsByTransactionHash(): void
     {
         $reader = $this->createReader();
@@ -474,7 +450,7 @@ final class ReaderTest extends TestCase
         self::assertCount(2, $audits[Post::class], 'Reader::getAllAuditsByTransactionHash() is ok.');
     }
 
-    protected function explain(Entry $entry, string $class, bool $verbose = true): string
+    private function explain(Entry $entry, string $class, bool $verbose = true): string
     {
         $diff = $entry->getDiffs() ?? [];
 
@@ -483,7 +459,7 @@ final class ReaderTest extends TestCase
                 return 'Deleted '.$class.'#'.$entry->getObjectId();
 
             case Transaction::UPDATE:
-                $changeset = static function (array $diff) use ($verbose) {
+                $changeset = static function (array $diff) use ($verbose): string {
                     $changes = [];
                     foreach ($diff as $key => $value) {
                         $old = $value['old'] ?? 'null';
@@ -501,7 +477,7 @@ final class ReaderTest extends TestCase
                 return 'Updated '.$class.'#'.$entry->getObjectId().': ['.$changeset($diff).']';
 
             case Transaction::INSERT:
-                $changeset = static function (array $diff) use ($verbose) {
+                $changeset = static function (array $diff) use ($verbose): string {
                     $changes = [];
                     foreach ($diff as $key => $value) {
                         $old = $value['old'] ?? 'null';

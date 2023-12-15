@@ -7,10 +7,9 @@ namespace DH\Auditor\Provider\Doctrine\Persistence\Event;
 use DH\Auditor\Provider\Doctrine\DoctrineProvider;
 use DH\Auditor\Provider\Doctrine\Persistence\Schema\SchemaManager;
 use DH\Auditor\Provider\Doctrine\Service\StorageService;
-use Doctrine\Common\EventSubscriber;
 use Doctrine\ORM\Event\LoadClassMetadataEventArgs;
 
-class TableSchemaSubscriber implements EventSubscriber
+final class TableSchemaListener
 {
     private DoctrineProvider $provider;
 
@@ -28,17 +27,12 @@ class TableSchemaSubscriber implements EventSubscriber
 
             \assert($storageService instanceof StorageService);
             $platform = $storageService->getEntityManager()->getConnection()->getDatabasePlatform();
-            if (!$platform->supportsSchemas()) {
+            if ($platform instanceof \Doctrine\DBAL\Platforms\AbstractPlatform && !$platform->supportsSchemas()) {
                 $classMetadata->setPrimaryTable([
                     'name' => $schemaManager->resolveTableName($classMetadata->getTableName(), $classMetadata->getSchemaName() ?? '', $platform),
                     'schema' => '',
                 ]);
             }
         }
-    }
-
-    public function getSubscribedEvents(): array
-    {
-        return ['loadClassMetadata'];
     }
 }

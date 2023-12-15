@@ -21,7 +21,7 @@ trait ConnectionTrait
 
     private function getConnection(string $name = 'default', ?array $params = null): Connection
     {
-        if (!isset(self::$connections[$name]) || null === self::$connections[$name]) {
+        if (!isset(self::$connections[$name]) || !self::$connections[$name] instanceof \Doctrine\DBAL\Connection) {
             self::$connections[$name] = $this->createConnection($params);
         }
 
@@ -65,6 +65,9 @@ trait ConnectionTrait
         return DriverManager::getConnection($params, $config);
     }
 
+    /**
+     * @return array<string, string>
+     */
     private static function getConnectionParameters(?array $params = null): array
     {
         if (null === $params && !isset(
@@ -103,9 +106,10 @@ trait ConnectionTrait
     {
         try {
             $schemaManager->dropDatabase($dbname);
-        } catch (Throwable $exception) {
+        } catch (Throwable) {
             // do nothing
         }
+
         $schemaManager->createDatabase($dbname);
     }
 }

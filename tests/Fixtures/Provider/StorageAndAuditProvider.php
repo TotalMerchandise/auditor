@@ -8,15 +8,11 @@ use DH\Auditor\Event\LifecycleEvent;
 use DH\Auditor\Provider\AbstractProvider;
 use DH\Auditor\Provider\ConfigurationInterface;
 
-class StorageAndAuditProvider extends AbstractProvider
+final class StorageAndAuditProvider extends AbstractProvider
 {
-    public function getConfiguration(): ConfigurationInterface
-    {
-    }
+    public function getConfiguration(): ConfigurationInterface {}
 
-    public function persist(LifecycleEvent $event): void
-    {
-    }
+    public function persist(LifecycleEvent $event): void {}
 
     public function supportsStorage(): bool
     {
@@ -28,11 +24,7 @@ class StorageAndAuditProvider extends AbstractProvider
         return true;
     }
 
-    public function getStorageServices(): array
-    {
-    }
+    public function getStorageServices(): array {}
 
-    public function getAuditingServices(): array
-    {
-    }
+    public function getAuditingServices(): array {}
 }

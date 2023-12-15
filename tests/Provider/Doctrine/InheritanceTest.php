@@ -18,9 +18,8 @@ use PHPUnit\Framework\TestCase;
 
 /**
  * @internal
- *
- * @small
  */
+#[\PHPUnit\Framework\Attributes\Small]
 final class InheritanceTest extends TestCase
 {
     use ReaderTrait;
@@ -116,14 +115,14 @@ final class InheritanceTest extends TestCase
         ]);
         $this->provider->registerStorageService(new StorageService('default', $entityManager));
         $this->provider->registerAuditingService(new AuditingService('default', $entityManager));
-//        $this->provider->registerEntityManager(
-//            $this->createEntityManager([
-//                __DIR__.'/../../../src/Provider/Doctrine/Auditing/Annotation',
-//                __DIR__.'/Fixtures/Entity/Inheritance',
-//            ]),
-//            DoctrineProvider::BOTH,
-//            'default'
-//        );
+        //        $this->provider->registerEntityManager(
+        //            $this->createEntityManager([
+        //                __DIR__.'/../../../src/Provider/Doctrine/Auditing/Annotation',
+        //                __DIR__.'/Fixtures/Entity/Inheritance',
+        //            ]),
+        //            DoctrineProvider::BOTH,
+        //            'default'
+        //        );
 
         $auditor->registerProvider($this->provider);
     }

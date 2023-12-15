@@ -6,46 +6,28 @@ namespace DH\Auditor\Tests\Provider\Doctrine\Fixtures\Entity\Standard\Blog;
 
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
+use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Stringable;
 
-/**
- * @ORM\Entity
- * @ORM\Table(name="author")
- */
 #[ORM\Entity]
 #[ORM\Table(name: 'author')]
 class Author implements Stringable
 {
-    /**
-     * @ORM\Id
-     * @ORM\Column(type="integer", options={"unsigned": true})
-     * @ORM\GeneratedValue(strategy="IDENTITY")
-     */
     #[ORM\Id]
-    #[ORM\Column(type: 'integer', options: ['unsigned' => true])]
+    #[ORM\Column(type: Types::INTEGER, options: ['unsigned' => true])]
     #[ORM\GeneratedValue(strategy: 'IDENTITY')]
-    protected $id;
+    protected ?int $id = null;
 
-    /**
-     * @ORM\Column(type="string", length=255)
-     */
-    #[ORM\Column(type: 'string', length: 255)]
-    protected $fullname;
+    #[ORM\Column(type: Types::STRING, length: 255)]
+    protected ?string $fullname = null;
 
-    /**
-     * @ORM\Column(type="string", length=255)
-     */
-    #[ORM\Column(type: 'string', length: 255)]
-    protected $email;
+    #[ORM\Column(type: Types::STRING, length: 255)]
+    protected ?string $email = null;
 
-    /**
-     * @ORM\OneToMany(targetEntity="Post", mappedBy="author", cascade={"persist", "remove"})
-     * @ORM\JoinColumn(name="id", referencedColumnName="author_id", nullable=false)
-     */
-    #[ORM\OneToMany(targetEntity: 'Post', mappedBy: 'author', cascade: ['persist'])]
-    #[ORM\JoinColumn(name: 'id', referencedColumnName: 'author_id', nullable: true)]
-    protected $posts;
+    #[ORM\OneToMany(targetEntity: 'Post', mappedBy: 'author', cascade: ['persist', 'remove'])]
+    #[ORM\JoinColumn(name: 'id', referencedColumnName: 'author_id', nullable: false)]
+    protected Collection $posts;
 
     public function __construct()
     {
@@ -54,7 +36,7 @@ class Author implements Stringable
 
     public function __toString(): string
     {
-        return $this->getFullname() ?? self::class.'#'.$this->getId();
+        return $this->fullname ?? self::class.'#'.$this->id;
     }
 
     public function __sleep()
@@ -74,8 +56,6 @@ class Author implements Stringable
 
     /**
      * Get the value of id.
-     *
-     * @return int
      */
     public function getId(): ?int
     {
@@ -94,8 +74,6 @@ class Author implements Stringable
 
     /**
      * Get the value of fullname.
-     *
-     * @return string
      */
     public function getFullname(): ?string
     {
@@ -114,8 +92,6 @@ class Author implements Stringable
 
     /**
      * Get the value of email.
-     *
-     * @return string
      */
     public function getEmail(): ?string
     {

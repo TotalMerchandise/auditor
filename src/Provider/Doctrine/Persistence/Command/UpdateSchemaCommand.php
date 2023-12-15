@@ -18,16 +18,11 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 /**
  * @see \DH\Auditor\Tests\Provider\Doctrine\Persistence\Command\UpdateSchemaCommandTest
  */
-class UpdateSchemaCommand extends Command
+final class UpdateSchemaCommand extends Command
 {
     use LockableTrait;
 
     private Auditor $auditor;
-
-    public function unlock(): void
-    {
-        $this->release();
-    }
 
     public function setAuditor(Auditor $auditor): self
     {
@@ -51,7 +46,7 @@ class UpdateSchemaCommand extends Command
         if (!$this->lock()) {
             $output->writeln('The command is already running in another process.');
 
-            return 0;
+            return Command::SUCCESS;
         }
 
         $io = new SymfonyStyle($input, $output);
@@ -66,7 +61,7 @@ class UpdateSchemaCommand extends Command
         $sqls = $updateManager->getUpdateAuditSchemaSql();
 
         $count = 0;
-        foreach ($sqls as $name => $queries) {
+        foreach ($sqls as $queries) {
             $count += is_countable($queries) ? \count($queries) : 0;
         }
 
@@ -74,15 +69,15 @@ class UpdateSchemaCommand extends Command
             $io->success('Nothing to update.');
             $this->release();
 
-            return 0;
+            return Command::SUCCESS;
         }
 
         if ($dumpSql) {
             $io->text('The following SQL statements will be executed:');
             $io->newLine();
 
-            foreach ($sqls as $name => $queries) {
-                foreach ($queries as $index => $sql) {
+            foreach ($sqls as $queries) {
+                foreach ($queries as $sql) {
                     $io->text(sprintf('    %s;', $sql));
                 }
             }
@@ -92,6 +87,7 @@ class UpdateSchemaCommand extends Command
             if ($dumpSql) {
                 $io->newLine();
             }
+
             $io->text('Updating database schema...');
             $io->newLine();
 
@@ -114,7 +110,7 @@ class UpdateSchemaCommand extends Command
         if ($dumpSql || $force) {
             $this->release();
 
-            return 0;
+            return Command::SUCCESS;
         }
 
         $io->caution('This operation should not be executed in a production environment!');
@@ -131,6 +127,6 @@ class UpdateSchemaCommand extends Command
 
         $this->release();
 
-        return 1;
+        return Command::FAILURE;
     }
 }

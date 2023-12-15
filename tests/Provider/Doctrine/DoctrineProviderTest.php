@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace DH\Auditor\Tests\Provider\Doctrine;
 
+use DH\Auditor\Exception\InvalidArgumentException;
 use DH\Auditor\Exception\ProviderException;
 use DH\Auditor\Provider\Doctrine\Auditing\Annotation\AnnotationLoader;
 use DH\Auditor\Provider\Doctrine\Configuration;
@@ -15,7 +16,6 @@ use DH\Auditor\Security\RoleCheckerInterface;
 use DH\Auditor\Security\SecurityProviderInterface;
 use DH\Auditor\Tests\Fixtures\Provider\AuditNoStorageProvider;
 use DH\Auditor\Tests\Fixtures\Provider\StorageNoAuditProvider;
-use DH\Auditor\Tests\Provider\Doctrine\Fixtures\Entity\Annotation\AuditedEntity as AuditedEntityWithAnnotation;
 use DH\Auditor\Tests\Provider\Doctrine\Fixtures\Entity\Attribute\AuditedEntity as AuditedEntityWithAttribute;
 use DH\Auditor\Tests\Provider\Doctrine\Fixtures\Entity\Standard\Blog\Comment;
 use DH\Auditor\Tests\Provider\Doctrine\Fixtures\Entity\Standard\Blog\Post;
@@ -30,9 +30,8 @@ use PHPUnit\Framework\TestCase;
 
 /**
  * @internal
- *
- * @small
  */
+#[\PHPUnit\Framework\Attributes\Small]
 final class DoctrineProviderTest extends TestCase
 {
     use DoctrineProviderTrait;
@@ -85,10 +84,18 @@ final class DoctrineProviderTest extends TestCase
         $provider->registerAuditingService(new AuditingService('auditingEM_1', $this->createEntityManager()));
     }
 
-    /**
-     * @depends testRegisterAuditingEntityManager
-     * @depends testRegisterStorageEntityManager
-     */
+    #[\PHPUnit\Framework\Attributes\Depends('testRegisterAuditingEntityManager')]
+    public function testGetAuditingServiceForEntity(): void
+    {
+        $provider = $this->createUnregisteredDoctrineProvider();
+        $provider->registerAuditingService(new AuditingService('auditingEM', $this->createEntityManager()));
+
+        $this->expectException(InvalidArgumentException::class);
+        $provider->getAuditingServiceForEntity('My\Fake\Entity');
+    }
+
+    #[\PHPUnit\Framework\Attributes\Depends('testRegisterAuditingEntityManager')]
+    #[\PHPUnit\Framework\Attributes\Depends('testRegisterStorageEntityManager')]
     public function testRegisterEntityManager(): void
     {
         $provider = $this->createUnregisteredDoctrineProvider();
@@ -152,10 +159,11 @@ final class DoctrineProviderTest extends TestCase
         $provider->registerAuditingService(new AuditingService('EM2', $entityManager2));
         $provider->registerStorageService(new StorageService('EM2', $entityManager2));
 
-        self::assertNull($provider->getConfiguration()->getStorageMapper(), 'Mapping closure is not set.');
+        self::assertNull($provider->getConfiguration()->getStorageMapper(), 'StorageMapper is not set.');
 
         $provider->setStorageMapper(static fn (string $entity, array $storageServices): StorageServiceInterface => 0 === mb_strpos($entity, 'Foo') ? $storageServices['EM1'] : $storageServices['EM2']);
-        self::assertNotNull($provider->getConfiguration()->getStorageMapper(), 'Mapping closure is set.');
+        self::assertNotNull($provider->getConfiguration()->getStorageMapper(), 'StorageMapper is set.');
+        self::assertIsCallable($provider->getConfiguration()->getStorageMapper(), 'StorageMapper is a callable.');
 
         self::assertSame($entityManager1, $provider->getStorageServiceForEntity('Foo1')->getEntityManager(), 'EM1 is used.');
         self::assertSame($entityManager1, $provider->getStorageServiceForEntity('Foo2')->getEntityManager(), 'EM1 is used.');
@@ -164,6 +172,7 @@ final class DoctrineProviderTest extends TestCase
 
         $provider->setStorageMapper(new FakeStorageMapper());
         self::assertNotNull($provider->getConfiguration()->getStorageMapper(), 'StorageMapper is set.');
+        self::assertIsCallable($provider->getConfiguration()->getStorageMapper(), 'StorageMapper is a callable.');
 
         self::assertSame($entityManager1, $provider->getStorageServiceForEntity('Foo1')->getEntityManager(), 'EM1 is used.');
         self::assertSame($entityManager1, $provider->getStorageServiceForEntity('Foo2')->getEntityManager(), 'EM1 is used.');
@@ -192,8 +201,8 @@ final class DoctrineProviderTest extends TestCase
         $provider = $this->createUnregisteredDoctrineProvider();
         self::assertFalse($provider->isRegistered(), 'Provider is not registered.');
 
-        self::expectException(Exception::class);
-        $auditor = $provider->getAuditor();
+        $this->expectException(Exception::class);
+        $provider->getAuditor();
 
         // registered provider
         $provider = $this->createDoctrineProvider();
@@ -234,9 +243,7 @@ final class DoctrineProviderTest extends TestCase
         self::assertFalse($provider->isAuditable(Comment::class), 'Entity "'.Comment::class.'" is not auditable.');
     }
 
-    /**
-     * @depends testIsAudited
-     */
+    #[\PHPUnit\Framework\Attributes\Depends('testIsAudited')]
     public function testIsAuditedHonorsEnabledFlag(): void
     {
         $entities = [
@@ -266,9 +273,7 @@ final class DoctrineProviderTest extends TestCase
         self::assertFalse($provider->isAudited(Post::class), 'Entity "'.Post::class.'" is not audited.');
     }
 
-    /**
-     * @depends testIsAudited
-     */
+    #[\PHPUnit\Framework\Attributes\Depends('testIsAudited')]
     public function testIsAuditedWhenAuditIsEnabled(): void
     {
         $entities = [
@@ -300,9 +305,7 @@ final class DoctrineProviderTest extends TestCase
         self::assertFalse($provider->isAudited(Post::class), 'Entity "'.Post::class.'" is not audited.');
     }
 
-    /**
-     * @depends testIsAudited
-     */
+    #[\PHPUnit\Framework\Attributes\Depends('testIsAudited')]
     public function testIsAuditedWhenAuditIsDisabled(): void
     {
         $entities = [
@@ -323,9 +326,7 @@ final class DoctrineProviderTest extends TestCase
         self::assertFalse($provider->isAudited(Post::class), 'Entity "'.Post::class.'" is not audited.');
     }
 
-    /**
-     * @depends testIsAudited
-     */
+    #[\PHPUnit\Framework\Attributes\Depends('testIsAudited')]
     public function testIsAuditedFieldAuditsAnyFieldByDefault(): void
     {
         $entities = [
@@ -343,9 +344,7 @@ final class DoctrineProviderTest extends TestCase
         self::assertTrue($provider->isAuditedField(Post::class, 'updated_at'), 'Every field is audited.');
     }
 
-    /**
-     * @depends testIsAuditedFieldAuditsAnyFieldByDefault
-     */
+    #[\PHPUnit\Framework\Attributes\Depends('testIsAuditedFieldAuditsAnyFieldByDefault')]
     public function testIsAuditedFieldHonorsLocallyIgnoredColumns(): void
     {
         $entities = [
@@ -368,9 +367,7 @@ final class DoctrineProviderTest extends TestCase
         self::assertFalse($provider->isAuditedField(Post::class, 'updated_at'), 'Field "'.Post::class.'::$updated_at" is not audited.');
     }
 
-    /**
-     * @depends testIsAuditedFieldHonorsLocallyIgnoredColumns
-     */
+    #[\PHPUnit\Framework\Attributes\Depends('testIsAuditedFieldHonorsLocallyIgnoredColumns')]
     public function testIsAuditedFieldHonorsGloballyIgnoredColumns(): void
     {
         $entities = [
@@ -392,9 +389,7 @@ final class DoctrineProviderTest extends TestCase
         self::assertFalse($provider->isAuditedField(Post::class, 'updated_at'), 'Field "'.Post::class.'::$updated_at" is not audited.');
     }
 
-    /**
-     * @depends testIsAuditedFieldHonorsLocallyIgnoredColumns
-     */
+    #[\PHPUnit\Framework\Attributes\Depends('testIsAuditedFieldHonorsLocallyIgnoredColumns')]
     public function testIsAuditedFieldReturnsFalseIfEntityIsNotAudited(): void
     {
         $entities = [
@@ -413,48 +408,15 @@ final class DoctrineProviderTest extends TestCase
         self::assertFalse($provider->isAuditedField(Comment::class, 'id'), 'Field "'.Comment::class.'::$id" is audited but "'.Comment::class.'" entity is not.');
     }
 
-    public function testLoadEntitiesWithAnnotationsOnly(): void
-    {
-        $entityManager = $this->createEntityManager(
-            [
-                __DIR__.'/../../../src/Provider/Doctrine/Auditing/Annotation',
-                __DIR__.'/Fixtures/Entity/Annotation',
-            ],
-            'default',
-            null,
-            false
-        );
-        $annotationLoader = new AnnotationLoader($entityManager);
-        $loaded = $annotationLoader->load();
-        self::assertCount(2, $loaded);
-
-        $auditor = $this->createAuditor();
-        $provider = new DoctrineProvider($this->createProviderConfiguration(['entities' => $loaded]));
-        $provider->registerStorageService(new StorageService('default', $entityManager));
-        $provider->registerAuditingService(new AuditingService('default', $entityManager));
-        $auditor->registerProvider($provider);
-
-        self::assertTrue($provider->isAudited(AuditedEntityWithAnnotation::class), '"'.AuditedEntityWithAnnotation::class.'" is audited.');
-        self::assertTrue($provider->isAuditedField(AuditedEntityWithAnnotation::class, 'auditedField'), 'Field "'.AuditedEntityWithAnnotation::class.'::$auditedField" is audited.');
-        self::assertFalse($provider->isAuditedField(AuditedEntityWithAnnotation::class, 'ignoredField'), 'Field "'.AuditedEntityWithAnnotation::class.'::$ignoredField" is ignored.');
-        self::assertFalse($provider->isAuditedField(AuditedEntityWithAnnotation::class, 'ignoredProtectedField'), 'Field "'.AuditedEntityWithAnnotation::class.'::$ignoredProtectedField" is ignored.');
-        self::assertFalse($provider->isAuditedField(AuditedEntityWithAnnotation::class, 'ignoredPrivateField'), 'Field "'.AuditedEntityWithAnnotation::class.'::$ignoredPrivateField" is ignored.');
-    }
-
     public function testLoadEntitiesWithAttributesOnly(): void
     {
-        if (\PHP_VERSION_ID < 80000) {
-            self::markTestSkipped('PHP > 8.0 is required.');
-        }
-
         $entityManager = $this->createEntityManager(
             [
                 __DIR__.'/../../../src/Provider/Doctrine/Auditing/Annotation',
                 __DIR__.'/Fixtures/Entity/Attribute',
             ],
             'default',
-            null,
-            true
+            null
         );
         $annotationLoader = new AnnotationLoader($entityManager);
         $loaded = $annotationLoader->load();
@@ -464,6 +426,7 @@ final class DoctrineProviderTest extends TestCase
         $provider = new DoctrineProvider($this->createProviderConfiguration(['entities' => $loaded]));
         $provider->registerStorageService(new StorageService('default', $entityManager));
         $provider->registerAuditingService(new AuditingService('default', $entityManager));
+
         $auditor->registerProvider($provider);
 
         self::assertTrue($provider->isAudited(AuditedEntityWithAttribute::class), '"'.AuditedEntityWithAttribute::class.'" is audited.');
@@ -473,9 +436,7 @@ final class DoctrineProviderTest extends TestCase
         self::assertFalse($provider->isAuditedField(AuditedEntityWithAttribute::class, 'ignoredPrivateField'), 'Field "'.AuditedEntityWithAttribute::class.'::$ignoredPrivateField" is ignored.');
     }
 
-    /**
-     * @depends testIsAuditedHonorsEnabledFlag
-     */
+    #[\PHPUnit\Framework\Attributes\Depends('testIsAuditedHonorsEnabledFlag')]
     public function testEnableAuditFor(): void
     {
         $entities = [
@@ -496,9 +457,7 @@ final class DoctrineProviderTest extends TestCase
         self::assertTrue($provider->isAudited(Post::class), 'entity "'.Post::class.'" is audited.');
     }
 
-    /**
-     * @depends testIsAuditedHonorsEnabledFlag
-     */
+    #[\PHPUnit\Framework\Attributes\Depends('testIsAuditedHonorsEnabledFlag')]
     public function testDisableAuditFor(): void
     {
         $entities = [
@@ -587,7 +546,7 @@ final class DoctrineProviderTest extends TestCase
     }
 }
 
-class FakeStorageMapper
+final class FakeStorageMapper
 {
     public function __invoke(string $entity, array $storageServices): StorageServiceInterface
     {
@@ -595,7 +554,7 @@ class FakeStorageMapper
     }
 }
 
-class FakeUserProvider implements UserProviderInterface
+final class FakeUserProvider implements UserProviderInterface
 {
     public function __invoke(): ?UserInterface
     {
@@ -603,7 +562,7 @@ class FakeUserProvider implements UserProviderInterface
     }
 }
 
-class FakeSecurityProvider implements SecurityProviderInterface
+final class FakeSecurityProvider implements SecurityProviderInterface
 {
     public function __invoke(): array
     {
@@ -611,7 +570,7 @@ class FakeSecurityProvider implements SecurityProviderInterface
     }
 }
 
-class FakeRoleChecker implements RoleCheckerInterface
+final class FakeRoleChecker implements RoleCheckerInterface
 {
     public function __invoke(string $entity, string $scope): bool
     {

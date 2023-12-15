@@ -6,24 +6,15 @@ namespace DH\Auditor\Event\Dto;
 
 final class RemoveEventDto extends AbstractEventDto
 {
-    /**
-     * @var mixed
-     */
-    private $id;
+    private mixed $id;
 
-    /**
-     * @param mixed $id
-     */
-    public function __construct(object $source, $id)
+    public function __construct(object $source, mixed $id)
     {
         parent::__construct($source);
         $this->id = $id;
     }
 
-    /**
-     * @return mixed
-     */
-    public function getId()
+    public function getId(): mixed
     {
         return $this->id;
     }

@@ -4,37 +4,36 @@ declare(strict_types=1);
 
 namespace DH\Auditor\Model;
 
+use DateTimeImmutable;
+
 /**
  * @see \DH\Auditor\Tests\Model\EntryTest
  */
-class Entry
+final class Entry
 {
-    protected int $id;
+    private int $id;
 
-    protected string $type;
+    private string $type;
 
-    protected string $object_id;
+    private string $object_id;
 
-    protected ?string $discriminator;
+    private ?string $discriminator = null;
 
-    protected ?string $transaction_hash;
+    private ?string $transaction_hash = null;
 
-    protected string $diffs;
+    private string $diffs;
 
-    /**
-     * @var null|int|string
-     */
-    protected $blame_id;
+    private int|null|string $blame_id = null;
 
-    protected ?string $blame_user = null;
+    private ?string $blame_user = null;
 
-    protected ?string $blame_user_fqdn = null;
+    private ?string $blame_user_fqdn = null;
 
-    protected ?string $blame_user_firewall = null;
+    private ?string $blame_user_firewall = null;
 
-    protected ?string $ip = null;
+    private ?string $ip = null;
 
-    protected string $created_at;
+    private DateTimeImmutable $created_at;
 
     /**
      * Get the value of id.
@@ -78,10 +77,8 @@ class Entry
 
     /**
      * Get the value of blame_id.
-     *
-     * @return null|int|string
      */
-    public function getUserId()
+    public function getUserId(): int|null|string
     {
         return $this->blame_id;
     }
@@ -106,8 +103,6 @@ class Entry
 
     /**
      * Get the value of ip.
-     *
-     * @return string
      */
     public function getIp(): ?string
     {
@@ -117,17 +112,15 @@ class Entry
     /**
      * Get the value of created_at.
      */
-    public function getCreatedAt(): string
+    public function getCreatedAt(): DateTimeImmutable
     {
         return $this->created_at;
     }
 
     /**
      * Get diff values.
-     *
-     * @return array
      */
-    public function getDiffs(bool $includeMedadata = false): ?array
+    public function getDiffs(bool $includeMedadata = false): array
     {
         $diffs = $this->sort(json_decode($this->diffs, true, 512, JSON_THROW_ON_ERROR));  // @phpstan-ignore-line
         if (!$includeMedadata) {

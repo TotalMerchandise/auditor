@@ -21,9 +21,8 @@ use Symfony\Component\Console\Tester\CommandTester;
 
 /**
  * @internal
- *
- * @small
  */
+#[\PHPUnit\Framework\Attributes\Small]
 final class UpdateSchemaCommandTest extends TestCase
 {
     use LockableTrait;
@@ -48,7 +47,6 @@ final class UpdateSchemaCommandTest extends TestCase
         $command = $this->createCommand();
         $commandTester = new CommandTester($command);
         $commandTester->execute([]);
-        $command->unlock();
 
         // the output of the command in the auditor
         $output = $commandTester->getDisplay();
@@ -57,30 +55,24 @@ final class UpdateSchemaCommandTest extends TestCase
         self::assertStringContainsString(' queries to update the database.', $output);
     }
 
-    /**
-     * @depends testExecute
-     */
+    #[\PHPUnit\Framework\Attributes\Depends('testExecute')]
     public function testExecuteDumpSQL(): void
     {
         $command = $this->createCommand();
         $commandTester = new CommandTester($command);
         $commandTester->execute(['--dump-sql' => true]);
-        $command->unlock();
 
         // the output of the command in the auditor
         $output = $commandTester->getDisplay();
         self::assertStringContainsString('The following SQL statements will be executed:', $output);
     }
 
-    /**
-     * @depends testExecute
-     */
+    #[\PHPUnit\Framework\Attributes\Depends('testExecute')]
     public function testExecuteForce(): void
     {
         $command = $this->createCommand();
         $commandTester = new CommandTester($command);
         $commandTester->execute(['--force' => true]);
-        $command->unlock();
 
         // the output of the command in the auditor
         $output = $commandTester->getDisplay();
@@ -88,9 +80,7 @@ final class UpdateSchemaCommandTest extends TestCase
         self::assertStringContainsString('[OK] Database schema updated successfully!', $output);
     }
 
-    /**
-     * @depends testExecute
-     */
+    #[\PHPUnit\Framework\Attributes\Depends('testExecute')]
     public function testExecuteForceDumpSQL(): void
     {
         $command = $this->createCommand();
@@ -99,7 +89,6 @@ final class UpdateSchemaCommandTest extends TestCase
             '--force' => true,
             '--dump-sql' => true,
         ]);
-        $command->unlock();
 
         // the output of the command in the auditor
         $output = $commandTester->getDisplay();
@@ -108,9 +97,7 @@ final class UpdateSchemaCommandTest extends TestCase
         self::assertStringContainsString('[OK] Database schema updated successfully!', $output);
     }
 
-    /**
-     * @depends testExecute
-     */
+    #[\PHPUnit\Framework\Attributes\Depends('testExecute')]
     public function testExecuteNothingToUpdate(): void
     {
         $this->provider->getConfiguration()->setEntities([]);
@@ -118,16 +105,13 @@ final class UpdateSchemaCommandTest extends TestCase
         $command = $this->createCommand();
         $commandTester = new CommandTester($command);
         $commandTester->execute(['--force' => true]);
-        $command->unlock();
 
         // the output of the command in the auditor
         $output = $commandTester->getDisplay();
         self::assertStringContainsString('[OK] Nothing to update.', $output);
     }
 
-    /**
-     * @depends testExecute
-     */
+    #[\PHPUnit\Framework\Attributes\Depends('testExecute')]
     public function testExecuteFailsWhileLocked(): void
     {
         $this->lock('audit:schema:update');
@@ -135,18 +119,18 @@ final class UpdateSchemaCommandTest extends TestCase
         $command = $this->createCommand();
         $commandTester = new CommandTester($command);
         $commandTester->execute([]);
-        $command->unlock();
 
         // the output of the command in the auditor
         $output = $commandTester->getDisplay();
         self::assertStringContainsString('The command is already running in another process.', $output);
+
+        $this->release();
     }
 
-    protected function createCommand(): UpdateSchemaCommand
+    private function createCommand(): UpdateSchemaCommand
     {
         $command = new UpdateSchemaCommand();
         $command->setAuditor($this->provider->getAuditor());
-        $command->unlock();
 
         return $command;
     }
@@ -180,7 +164,8 @@ final class UpdateSchemaCommandTest extends TestCase
 
         // unregister CreateSchemaListener
         $evm = $entityManager->getEventManager();
-        foreach ($evm->getListeners() as $event => $listeners) {
+        $allListeners = method_exists($evm, 'getAllListeners') ? $evm->getAllListeners() : $evm->getListeners();
+        foreach ($allListeners as $event => $listeners) {
             foreach ($listeners as $listener) {
                 if ($listener instanceof CreateSchemaListener) {
                     $evm->removeEventListener([$event], $listener);

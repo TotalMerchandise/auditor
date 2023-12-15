@@ -4,22 +4,19 @@ declare(strict_types=1);
 
 namespace DH\Auditor\Tests\Model;
 
+use DateTimeImmutable;
 use DH\Auditor\Model\Entry;
 use PHPUnit\Framework\TestCase;
 use ReflectionClass;
 
 /**
  * @internal
- *
- * @small
  */
+#[\PHPUnit\Framework\Attributes\Small]
 final class EntryTest extends TestCase
 {
     public function testAccessors(): void
     {
-        $entry = new Entry();
-        $reflectionClass = new ReflectionClass(Entry::class);
-
         $attributes = [
             'id' => 1,
             'type' => 'type',
@@ -30,8 +27,11 @@ final class EntryTest extends TestCase
             'blame_user_fqdn' => 'Acme\User',
             'blame_user_firewall' => 'main',
             'ip' => '1.2.3.4',
-            'created_at' => 'now',
+            'created_at' => new DateTimeImmutable(),
         ];
+
+        $entry = new Entry();
+        $reflectionClass = new ReflectionClass(Entry::class);
         foreach ($attributes as $name => $value) {
             $attribute = $reflectionClass->getProperty($name);
             $attribute->setAccessible(true);
@@ -48,7 +48,7 @@ final class EntryTest extends TestCase
         self::assertSame('Acme\User', $entry->getUserFqdn(), 'Entry::getUserFqdn() is ok.');
         self::assertSame('main', $entry->getUserFirewall(), 'Entry::getUserFirewall() is ok.');
         self::assertSame('1.2.3.4', $entry->getIp(), 'Entry::getIp() is ok.');
-        self::assertSame('now', $entry->getCreatedAt(), 'Entry::getCreatedAt() is ok.');
+        self::assertSame($attributes['created_at'], $entry->getCreatedAt(), 'Entry::getCreatedAt() is ok.');
     }
 
     public function testUndefinedUser(): void

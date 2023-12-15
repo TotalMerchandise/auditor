@@ -2,7 +2,7 @@
 
 [![Latest Stable Version](https://poser.pugx.org/damienharper/auditor/v/stable)](https://packagist.org/packages/damienharper/auditor)
 [![Latest Unstable Version](https://poser.pugx.org/damienharper/auditor/v/unstable)](https://packagist.org/packages/damienharper/auditor)
-[![auditor 2.x CI](https://github.com/DamienHarper/auditor/actions/workflows/ci-2.x.yml/badge.svg)](https://github.com/DamienHarper/auditor/actions/workflows/ci-2.x.yml)
+[![auditor 3.x CI](https://github.com/DamienHarper/auditor/actions/workflows/ci-3.x.yml/badge.svg)](https://github.com/DamienHarper/auditor/actions/workflows/ci-3.x.yml)
 [![Scrutinizer Code Quality](https://scrutinizer-ci.com/g/DamienHarper/auditor/badges/quality-score.png?b=master)](https://scrutinizer-ci.com/g/DamienHarper/auditor/?branch=master)
 [![codecov](https://codecov.io/gh/DamienHarper/auditor/branch/master/graph/badge.svg)](https://app.codecov.io/gh/DamienHarper/auditor/branch/master)
 [![License](https://poser.pugx.org/damienharper/auditor/license)](https://packagist.org/packages/damienharper/auditor)

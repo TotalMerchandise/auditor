@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace DH\Auditor\Provider\Doctrine\Persistence\Schema;
 
+use DH\Auditor\Exception\InvalidArgumentException;
 use DH\Auditor\Provider\Doctrine\Configuration;
 use DH\Auditor\Provider\Doctrine\DoctrineProvider;
 use DH\Auditor\Provider\Doctrine\Persistence\Helper\DoctrineHelper;
@@ -22,7 +23,7 @@ use Doctrine\ORM\EntityManagerInterface;
 /**
  * @see \DH\Auditor\Tests\Provider\Doctrine\Persistence\Schema\SchemaManagerTest
  */
-class SchemaManager
+final class SchemaManager
 {
     private DoctrineProvider $provider;
 
@@ -43,7 +44,7 @@ class SchemaManager
             $connection = $storageServices[$name]->getEntityManager()->getConnection();
             foreach ($queries as $index => $sql) {
                 $statement = $connection->prepare($sql);
-                DoctrineHelper::executeStatement($statement);
+                $statement->executeStatement();
 
                 if (null !== $callback) {
                     $callback([
@@ -63,15 +64,17 @@ class SchemaManager
     {
         $metadataDriver = $entityManager->getConfiguration()->getMetadataDriverImpl();
         $entities = [];
-        if (null !== $metadataDriver) {
+        if ($metadataDriver instanceof \Doctrine\Persistence\Mapping\Driver\MappingDriver) {
             $entities = $metadataDriver->getAllClassNames();
         }
+
         $audited = [];
         foreach ($entities as $entity) {
             if ($this->provider->isAuditable($entity)) {
                 $audited[$entity] = $entityManager->getClassMetadata($entity)->getTableName();
             }
         }
+
         ksort($audited);
 
         return $audited;
@@ -93,6 +96,7 @@ class SchemaManager
                 if (!isset($repository[$key])) {
                     $repository[$key] = [];
                 }
+
                 $repository[$key][$entity] = $tableName;
             }
         }
@@ -115,8 +119,9 @@ class SchemaManager
         $sqls = [];
         foreach ($repository as $name => $classes) {
             $storageConnection = $storageServices[$name]->getEntityManager()->getConnection();
-            $storageSchemaManager = DoctrineHelper::createSchemaManager($storageConnection);
-            $storageSchema = DoctrineHelper::introspectSchema($storageSchemaManager);
+            $storageSchemaManager = $storageConnection->createSchemaManager();
+
+            $storageSchema = $storageSchemaManager->introspectSchema();
             $fromSchema = clone $storageSchema;
 
             $processed = [];
@@ -136,6 +141,7 @@ class SchemaManager
                     $processed[] = $entityFQCN;
                 }
             }
+
             $sqls[$name] = DoctrineHelper::getMigrateToSql($storageConnection, $fromSchema, $storageSchema);
         }
 
@@ -153,7 +159,7 @@ class SchemaManager
         $storageService = $this->provider->getStorageServiceForEntity($entity);
         $connection = $storageService->getEntityManager()->getConnection();
 
-        if (null === $schema) {
+        if (!$schema instanceof \Doctrine\DBAL\Schema\Schema) {
             $schemaManager = DoctrineHelper::createSchemaManager($connection);
             $schema = DoctrineHelper::introspectSchema($schemaManager);
         }
@@ -168,7 +174,7 @@ class SchemaManager
             // Add columns to audit table
             $isJsonSupported = PlatformHelper::isJsonSupported($connection);
             foreach (SchemaHelper::getAuditTableColumns() as $columnName => $struct) {
-                if (Types::JSON === $struct['type'] && $isJsonSupported) {
+                if (Types::JSON === $struct['type'] && !$isJsonSupported) {
                     $type = Types::TEXT;
                 } else {
                     $type = $struct['type'];
@@ -181,13 +187,15 @@ class SchemaManager
             foreach (SchemaHelper::getAuditTableIndices($auditTablename) as $columnName => $struct) {
                 if ('primary' === $struct['type']) {
                     $auditTable->setPrimaryKey([$columnName]);
-                } else {
+                } elseif (isset($struct['name'])) {
                     $auditTable->addIndex(
                         [$columnName],
                         $struct['name'],
                         [],
                         PlatformHelper::isIndexLengthLimited($columnName, $connection) ? ['lengths' => [191]] : []
                     );
+                } else {
+                    throw new InvalidArgumentException(sprintf("Missing key 'name' for column '%s'", $columnName));
                 }
             }
         }
@@ -208,7 +216,7 @@ class SchemaManager
         $connection = $storageService->getEntityManager()->getConnection();
 
         $schemaManager = DoctrineHelper::createSchemaManager($connection);
-        if (null === $schema) {
+        if (!$schema instanceof \Doctrine\DBAL\Schema\Schema) {
             $schema = DoctrineHelper::introspectSchema($schemaManager);
         }
 
@@ -262,7 +270,7 @@ class SchemaManager
     public function computeAuditTablename(string $entityTableName, Configuration $configuration): ?string
     {
         return preg_replace(
-            sprintf('#^([^\.]+\.)?(%s)$#', preg_quote($entityTableName, '#')),
+            '#^([^.]+\.)?(.+)$#',
             sprintf(
                 '$1%s$2%s',
                 preg_quote($configuration->getTablePrefix(), '#'),
@@ -282,7 +290,7 @@ class SchemaManager
                 // column is part of expected columns
                 $table->dropColumn($column->getName());
 
-                if (Types::JSON === $expectedColumns[$column->getName()]['type'] && $isJsonSupported) {
+                if (Types::JSON === $expectedColumns[$column->getName()]['type'] && !$isJsonSupported) {
                     $type = Types::TEXT;
                 } else {
                     $type = $expectedColumns[$column->getName()]['type'];
@@ -317,6 +325,7 @@ class SchemaManager
                 if ($table->hasIndex($options['name'])) {
                     $table->dropIndex($options['name']);
                 }
+
                 $table->addIndex(
                     [$columnName],
                     $options['name'],

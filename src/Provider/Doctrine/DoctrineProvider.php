@@ -13,22 +13,40 @@ use DH\Auditor\Provider\Doctrine\Auditing\Annotation\AnnotationLoader;
 use DH\Auditor\Provider\Doctrine\Auditing\Event\DoctrineSubscriber;
 use DH\Auditor\Provider\Doctrine\Auditing\Transaction\TransactionManager;
 use DH\Auditor\Provider\Doctrine\Persistence\Event\CreateSchemaListener;
-use DH\Auditor\Provider\Doctrine\Persistence\Event\TableSchemaSubscriber;
+use DH\Auditor\Provider\Doctrine\Persistence\Event\TableSchemaListener;
 use DH\Auditor\Provider\Doctrine\Persistence\Helper\DoctrineHelper;
 use DH\Auditor\Provider\Doctrine\Service\AuditingService;
 use DH\Auditor\Provider\Doctrine\Service\StorageService;
 use DH\Auditor\Provider\ProviderInterface;
 use DH\Auditor\Provider\Service\AuditingServiceInterface;
-use DH\Auditor\Provider\Service\StorageServiceInterface;
 use Doctrine\ORM\EntityManagerInterface;
+use Doctrine\ORM\Events;
+use Doctrine\ORM\Tools\ToolEvents;
 use Exception;
 use Psr\Cache\CacheItemPoolInterface;
 
 /**
  * @see \DH\Auditor\Tests\Provider\Doctrine\DoctrineProviderTest
  */
-class DoctrineProvider extends AbstractProvider
+final class DoctrineProvider extends AbstractProvider
 {
+    /**
+     * @var array<string, string>
+     */
+    private const FIELDS = [
+        'type' => ':type',
+        'object_id' => ':object_id',
+        'discriminator' => ':discriminator',
+        'transaction_hash' => ':transaction_hash',
+        'diffs' => ':diffs',
+        'blame_id' => ':blame_id',
+        'blame_user' => ':blame_user',
+        'blame_user_fqdn' => ':blame_user_fqdn',
+        'blame_user_firewall' => ':blame_user_firewall',
+        'ip' => ':ip',
+        'created_at' => ':created_at',
+    ];
+
     private TransactionManager $transactionManager;
 
     public function __construct(ConfigurationInterface $configuration)
@@ -49,8 +67,8 @@ class DoctrineProvider extends AbstractProvider
         $evm = $entityManager->getEventManager();
 
         // Register subscribers
-        $evm->addEventSubscriber(new TableSchemaSubscriber($this));
-        $evm->addEventSubscriber(new CreateSchemaListener($this));
+        $evm->addEventListener([Events::loadClassMetadata], new TableSchemaListener($this));
+        $evm->addEventListener([ToolEvents::postGenerateSchemaTable], new CreateSchemaListener($this));
         $evm->addEventSubscriber(new DoctrineSubscriber($this->transactionManager));
 
         return $this;
@@ -61,9 +79,9 @@ class DoctrineProvider extends AbstractProvider
         return \count($this->getStorageServices()) > 1;
     }
 
-    public function getAuditingServiceForEntity(string $entity): AuditingServiceInterface
+    public function getAuditingServiceForEntity(string $entity): AuditingService
     {
-        foreach ($this->auditingServices as $name => $service) {
+        foreach ($this->auditingServices as $service) {
             \assert($service instanceof AuditingService);   // helps PHPStan
 
             try {
@@ -71,14 +89,14 @@ class DoctrineProvider extends AbstractProvider
                 $service->getEntityManager()->getClassMetadata($entity)->getTableName();
 
                 return $service;
-            } catch (Exception $e) {
+            } catch (Exception) {
             }
         }
 
         throw new InvalidArgumentException(sprintf('Auditing service not found for "%s".', $entity));
     }
 
-    public function getStorageServiceForEntity(string $entity): StorageServiceInterface
+    public function getStorageServiceForEntity(string $entity): StorageService
     {
         $this->checkStorageMapper();
 
@@ -87,7 +105,10 @@ class DoctrineProvider extends AbstractProvider
 
         if (null === $storageMapper || 1 === \count($this->getStorageServices())) {
             // No mapper and only 1 storage entity manager
-            return array_values($this->getStorageServices())[0];
+            /** @var array<StorageService> $services */
+            $services = $this->getStorageServices();
+
+            return array_values($services)[0];
         }
 
         if (\is_string($storageMapper) && class_exists($storageMapper)) {
@@ -106,25 +127,11 @@ class DoctrineProvider extends AbstractProvider
         $entity = $payload['entity'];
         unset($payload['table'], $payload['entity']);
 
-        $fields = [
-            'type' => ':type',
-            'object_id' => ':object_id',
-            'discriminator' => ':discriminator',
-            'transaction_hash' => ':transaction_hash',
-            'diffs' => ':diffs',
-            'blame_id' => ':blame_id',
-            'blame_user' => ':blame_user',
-            'blame_user_fqdn' => ':blame_user_fqdn',
-            'blame_user_firewall' => ':blame_user_firewall',
-            'ip' => ':ip',
-            'created_at' => ':created_at',
-        ];
-
         $query = sprintf(
             'INSERT INTO %s (%s) VALUES (%s)',
             $auditTable,
-            implode(', ', array_keys($fields)),
-            implode(', ', array_values($fields))
+            implode(', ', array_keys(self::FIELDS)),
+            implode(', ', array_values(self::FIELDS))
         );
 
         /** @var StorageService $storageService */
@@ -134,7 +141,8 @@ class DoctrineProvider extends AbstractProvider
         foreach ($payload as $key => $value) {
             $statement->bindValue($key, $value);
         }
-        DoctrineHelper::executeStatement($statement);
+
+        $statement->executeStatement();
 
         // let's get the last inserted ID from the database so other providers can use that info
         $payload = $event->getPayload();
@@ -144,27 +152,23 @@ class DoctrineProvider extends AbstractProvider
 
     /**
      * Returns true if $entity is auditable.
-     *
-     * @param object|string $entity
      */
-    public function isAuditable($entity): bool
+    public function isAuditable(object|string $entity): bool
     {
         $class = DoctrineHelper::getRealClassName($entity);
         // is $entity part of audited entities?
         \assert($this->configuration instanceof Configuration);   // helps PHPStan
 
         // no => $entity is not audited
-        return !(!\array_key_exists($class, $this->configuration->getEntities()));
+        return \array_key_exists($class, $this->configuration->getEntities());
     }
 
     /**
      * Returns true if $entity is audited.
-     *
-     * @param object|string $entity
      */
-    public function isAudited($entity): bool
+    public function isAudited(object|string $entity): bool
     {
-        \assert(null !== $this->auditor);
+        \assert($this->auditor instanceof \DH\Auditor\Auditor);
         if (!$this->auditor->getConfiguration()->isEnabled()) {
             return false;
         }
@@ -173,19 +177,14 @@ class DoctrineProvider extends AbstractProvider
         $configuration = $this->configuration;
         $class = DoctrineHelper::getRealClassName($entity);
 
-        $entities = $configuration->getEntities();
         // is $entity part of audited entities?
+        $entities = $configuration->getEntities();
         if (!\array_key_exists($class, $entities)) {
             // no => $entity is not audited
             return false;
         }
 
         $entityOptions = $entities[$class];
-
-        if (null === $entityOptions) {
-            // no option defined => $entity is audited
-            return true;
-        }
 
         if (isset($entityOptions['enabled'])) {
             return (bool) $entityOptions['enabled'];
@@ -196,10 +195,8 @@ class DoctrineProvider extends AbstractProvider
 
     /**
      * Returns true if $field is audited.
-     *
-     * @param object|string $entity
      */
-    public function isAuditedField($entity, string $field): bool
+    public function isAuditedField(object|string $entity, string $field): bool
     {
         // is $field is part of globally ignored columns?
         \assert($this->configuration instanceof Configuration);   // helps PHPStan
@@ -216,11 +213,6 @@ class DoctrineProvider extends AbstractProvider
 
         $class = DoctrineHelper::getRealClassName($entity);
         $entityOptions = $this->configuration->getEntities()[$class];
-
-        if (null === $entityOptions) {
-            // no option defined => $field is audited
-            return true;
-        }
 
         // are columns excluded and is field part of them?
         // yes => $field is not audited
@@ -255,15 +247,11 @@ class DoctrineProvider extends AbstractProvider
     {
         \assert($this->configuration instanceof Configuration);   // helps PHPStan
         $ormConfiguration = $entityManager->getConfiguration();
-
-        /** @since doctrine/orm:2.7.5 */
-        $metadataCache = method_exists($ormConfiguration, 'getMetadataCache')
-            ? $ormConfiguration->getMetadataCache()
-            : null;
+        $metadataCache = $ormConfiguration->getMetadataCache();
 
         $annotationLoader = new AnnotationLoader($entityManager);
 
-        if (null !== $metadataCache) {
+        if ($metadataCache instanceof \Psr\Cache\CacheItemPoolInterface) {
             $item = $metadataCache->getItem('__DH_ANNOTATIONS__');
             if (!$item->isHit() || !\is_array($annotationEntities = $item->get())) {
                 $annotationEntities = $annotationLoader->load();
@@ -273,6 +261,7 @@ class DoctrineProvider extends AbstractProvider
         } else {
             $annotationEntities = $annotationLoader->load();
         }
+
         $this->configuration->setEntities($entities + $annotationEntities);
 
         return $this;

@@ -19,8 +19,11 @@ use Symfony\Component\OptionsResolver\OptionsResolver;
 /**
  * @see \DH\Auditor\Tests\Provider\Doctrine\Persistence\Reader\ReaderTest
  */
-class Reader
+final class Reader
 {
+    /**
+     * @var int
+     */
     public const PAGE_SIZE = 50;
 
     private DoctrineProvider $provider;
@@ -47,10 +50,10 @@ class Reader
         $this->configureOptions($resolver);
         $config = $resolver->resolve($options);
 
-        /** @var StorageService $storageService */
-        $storageService = $this->provider->getStorageServiceForEntity($entity);
+        $connection = $this->provider->getStorageServiceForEntity($entity)->getEntityManager()->getConnection();
+        $timezone   = $this->provider->getAuditor()->getConfiguration()->getTimezone();
 
-        $query = new Query($this->getEntityAuditTableName($entity), $storageService->getEntityManager()->getConnection());
+        $query = new Query($this->getEntityAuditTableName($entity), $connection, $timezone);
         $query
             ->addOrderBy(Query::CREATED_AT, 'DESC')
             ->addOrderBy(Query::ID, 'DESC')
@@ -86,29 +89,6 @@ class Reader
         return $query;
     }
 
-    public function configureOptions(OptionsResolver $resolver): void
-    {
-        // https://symfony.com/doc/current/components/options_resolver.html
-        $resolver
-            ->setDefaults([
-                'type' => null,
-                'object_id' => null,
-                'transaction_hash' => null,
-                'page' => 1,
-                'page_size' => self::PAGE_SIZE,
-                'strict' => true,
-            ])
-            ->setAllowedTypes('type', ['null', 'string', 'array'])
-            ->setAllowedTypes('object_id', ['null', 'int', 'string', 'array'])
-            ->setAllowedTypes('transaction_hash', ['null', 'string', 'array'])
-            ->setAllowedTypes('page', ['null', 'int'])
-            ->setAllowedTypes('page_size', ['null', 'int'])
-            ->setAllowedTypes('strict', ['null', 'bool'])
-            ->setAllowedValues('page', static fn ($value) => null === $value || $value >= 1)
-            ->setAllowedValues('page_size', static fn ($value) => null === $value || $value >= 1)
-        ;
-    }
-
     /**
      * Returns an array of all audited entries/operations for a given transaction hash
      * indexed by entity FQCN.
@@ -120,13 +100,13 @@ class Reader
         $results = [];
 
         $entities = $configuration->getEntities();
-        foreach ($entities as $entity => $entityOptions) {
+        foreach (array_keys($entities) as $entity) {
             try {
                 $audits = $this->createQuery($entity, ['transaction_hash' => $transactionHash])->execute();
-                if (\count($audits) > 0) {
+                if ([] !== $audits) {
                     $results[$entity] = $audits;
                 }
-            } catch (AccessDeniedException $e) {
+            } catch (AccessDeniedException) {
                 // acces denied
             }
         }
@@ -134,6 +114,9 @@ class Reader
         return $results;
     }
 
+    /**
+     * @return array{results: ArrayIterator<int|string, \DH\Auditor\Model\Entry>, currentPage: int, hasPreviousPage: bool, hasNextPage: bool, previousPage: null|int, nextPage: null|int, numPages: int, haveToPaginate: bool, numResults: int, pageSize: int}
+     */
     public function paginate(Query $query, int $page = 1, int $pageSize = self::PAGE_SIZE): array
     {
         $numResults = $query->count();
@@ -189,6 +172,29 @@ class Reader
             $this->getEntityTableName($entity),
             $configuration->getTableSuffix()
         );
+    }
+
+    private function configureOptions(OptionsResolver $resolver): void
+    {
+        // https://symfony.com/doc/current/components/options_resolver.html
+        $resolver
+            ->setDefaults([
+                'type' => null,
+                'object_id' => null,
+                'transaction_hash' => null,
+                'page' => 1,
+                'page_size' => self::PAGE_SIZE,
+                'strict' => true,
+            ])
+            ->setAllowedTypes('type', ['null', 'string', 'array'])
+            ->setAllowedTypes('object_id', ['null', 'int', 'string', 'array'])
+            ->setAllowedTypes('transaction_hash', ['null', 'string', 'array'])
+            ->setAllowedTypes('page', ['null', 'int'])
+            ->setAllowedTypes('page_size', ['null', 'int'])
+            ->setAllowedTypes('strict', ['null', 'bool'])
+            ->setAllowedValues('page', static fn (?int $value): bool => null === $value || $value >= 1)
+            ->setAllowedValues('page_size', static fn (?int $value): bool => null === $value || $value >= 1)
+        ;
     }
 
     /**

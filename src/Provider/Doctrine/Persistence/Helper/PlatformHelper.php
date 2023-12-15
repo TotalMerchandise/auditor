@@ -20,10 +20,7 @@ abstract class PlatformHelper
         if (
             !isset($columns[$name])
             || $columns[$name]['type'] !== DoctrineHelper::getDoctrineType('STRING')
-            || (
-                isset($columns[$name]['options'], $columns[$name]['options']['length'])
-                && $columns[$name]['options']['length'] < 191
-            )
+            || (isset($columns[$name]['options']['length']) && $columns[$name]['options']['length'] < 191)
         ) {
             return false;
         }
@@ -39,15 +36,15 @@ abstract class PlatformHelper
             return true;
         }
 
-        return (bool) (!$mariadb && version_compare(self::getOracleMysqlVersionNumber($version), '5.7.7', '<'));
+        return !$mariadb && version_compare(self::getOracleMysqlVersionNumber($version), '5.7.7', '<');
     }
 
     public static function getServerVersion(Connection $connection): ?string
     {
-        $wrappedConnection = $connection->getWrappedConnection();
+        $nativeConnection = $connection->getNativeConnection();
 
-        if ($wrappedConnection instanceof ServerInfoAwareConnection) {
-            return $wrappedConnection->getServerVersion();
+        if ($nativeConnection instanceof ServerInfoAwareConnection) {
+            return $nativeConnection->getServerVersion();
         }
 
         return null;
@@ -62,12 +59,11 @@ abstract class PlatformHelper
 
         $mariadb = false !== mb_stripos($version, 'mariadb');
 
-        return !($mariadb && version_compare(self::getMariaDbMysqlVersionNumber($version), '10.2.7', '<'))
+        return !($mariadb && version_compare(self::getMariaDbMysqlVersionNumber($version), '10.2.7', '<'));
         // JSON wasn't supported on MariaDB before 10.2.7
         // @see https://mariadb.com/kb/en/json-data-type/
 
         // Assume JSON is supported
-        ;
     }
 
     /**
@@ -81,7 +77,7 @@ abstract class PlatformHelper
     public static function getOracleMysqlVersionNumber(string $versionString): string
     {
         preg_match(
-            '/^(?P<major>\d+)(?:\.(?P<minor>\d+)(?:\.(?P<patch>\d+))?)?/',
+            '#^(?P<major>\d+)(?:\.(?P<minor>\d+)(?:\.(?P<patch>\d+))?)?#',
             $versionString,
             $versionParts
         );
@@ -108,7 +104,7 @@ abstract class PlatformHelper
     public static function getMariaDbMysqlVersionNumber(string $versionString): string
     {
         preg_match(
-            '/^(?:5\.5\.5-)?(mariadb-)?(?P<major>\d+)\.(?P<minor>\d+)\.(?P<patch>\d+)/i',
+            '#^(?:5\.5\.5-)?(mariadb-)?(?P<major>\d+)\.(?P<minor>\d+)\.(?P<patch>\d+)#i',
             $versionString,
             $versionParts
         );

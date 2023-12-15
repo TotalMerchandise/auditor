@@ -4,19 +4,13 @@ declare(strict_types=1);
 
 namespace DH\Auditor\Provider\Doctrine\Persistence\Reader\Filter;
 
-class SimpleFilter implements FilterInterface
+final class SimpleFilter implements FilterInterface
 {
-    protected string $name;
+    private string $name;
 
-    /**
-     * @var array|string
-     */
-    protected $value;
+    private mixed $value;
 
-    /**
-     * @param array|string $value
-     */
-    public function __construct(string $name, $value)
+    public function __construct(string $name, mixed $value)
     {
         $this->name = $name;
         $this->value = $value;
@@ -27,10 +21,7 @@ class SimpleFilter implements FilterInterface
         return $this->name;
     }
 
-    /**
-     * @return array|string
-     */
-    public function getValue()
+    public function getValue(): mixed
     {
         return $this->value;
     }
@@ -38,17 +29,15 @@ class SimpleFilter implements FilterInterface
     public function getSQL(): array
     {
         if (\is_array($this->value) && 1 < \count($this->value)) {
-            $data = [
+            return [
                 'sql' => sprintf('%s IN (:%s)', $this->name, $this->name),
                 'params' => [$this->name => $this->value],
             ];
-        } else {
-            $data = [
-                'sql' => sprintf('%s = :%s', $this->name, $this->name),
-                'params' => [$this->name => (\is_array($this->value) ? $this->value[0] : $this->value)],
-            ];
         }
 
-        return $data;
+        return [
+            'sql' => sprintf('%s = :%s', $this->name, $this->name),
+            'params' => [$this->name => (\is_array($this->value) ? $this->value[0] : $this->value)],
+        ];
     }
 }

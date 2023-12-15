@@ -18,10 +18,9 @@ use PHPUnit\Framework\TestCase;
 /**
  * @internal
  *
- * @small
- *
  * @requires PHP >= 8.1
  */
+#[\PHPUnit\Framework\Attributes\Small]
 final class Issue115Test extends TestCase
 {
     use DefaultSchemaSetupTrait;
@@ -37,6 +36,7 @@ final class Issue115Test extends TestCase
         $transaction = new Transaction($entityManager);
         $entity = new DummyEntity();
         $entity->setId(DummyEnum::A);
+
         $transaction->insert($entity, [
             'id' => [DummyEnum::A, DummyEnum::B],
         ]);

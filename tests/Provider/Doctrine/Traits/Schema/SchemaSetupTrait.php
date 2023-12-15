@@ -67,7 +67,7 @@ trait SchemaSetupTrait
         $sqls = DoctrineHelper::getMigrateToSql($storageConnection, $fromSchema, $toSchema);
         foreach ($sqls as $sql) {
             $statement = $storageConnection->prepare($sql);
-            DoctrineHelper::executeStatement($statement);
+            $statement->executeStatement();
         }
 
         try {
@@ -76,7 +76,7 @@ trait SchemaSetupTrait
                     $entityManager->getConnection()->executeStatement('DROP SCHEMA IF EXISTS '.$schemaName);
                 }
             }
-        } catch (Exception $e) {
+        } catch (Exception) {
         }
     }
 
@@ -136,7 +136,7 @@ trait SchemaSetupTrait
         $sqls = DoctrineHelper::getMigrateToSql($storageConnection, $fromSchema, $schema);
         foreach ($sqls as $sql) {
             $statement = $storageConnection->prepare($sql);
-            DoctrineHelper::executeStatement($statement);
+            $statement->executeStatement();
         }
 
         try {
@@ -145,7 +145,7 @@ trait SchemaSetupTrait
                     $entityManager->getConnection()->executeStatement('DROP SCHEMA IF EXISTS '.$schemaName);
                 }
             }
-        } catch (Exception $e) {
+        } catch (Exception) {
         }
     }
 
@@ -154,9 +154,7 @@ trait SchemaSetupTrait
         // No audited entities configured
     }
 
-    private function setupEntities(): void
-    {
-    }
+    private function setupEntities(): void {}
 
     /**
      * @param array<StorageServiceInterface> $storageServices

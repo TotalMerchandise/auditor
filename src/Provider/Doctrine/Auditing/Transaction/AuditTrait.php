@@ -18,20 +18,18 @@ trait AuditTrait
     /**
      * Returns the primary key value of an entity.
      *
-     * @return mixed
-     *
      * @throws \DH\Auditor\Exception\MappingException
      * @throws \Doctrine\DBAL\Exception
      * @throws \Doctrine\ORM\Mapping\MappingException
      */
-    private function id(EntityManagerInterface $entityManager, object $entity)
+    private function id(EntityManagerInterface $entityManager, object $entity): mixed
     {
         $meta = $entityManager->getClassMetadata(DoctrineHelper::getRealClassName($entity));
 
         try {
             $pk = $meta->getSingleIdentifierFieldName();
-        } catch (ORMMappingException $e) {
-            throw new MappingException(sprintf('Composite primary keys are not supported (%s).', \get_class($entity)));
+        } catch (ORMMappingException) {
+            throw new MappingException(sprintf('Composite primary keys are not supported (%s).', $entity::class));
         }
 
         if (isset($meta->fieldMappings[$pk])) {
@@ -63,14 +61,10 @@ trait AuditTrait
     /**
      * Type converts the input value and returns it.
      *
-     * @param mixed $value
-     *
-     * @return mixed
-     *
      * @throws \Doctrine\DBAL\Exception
      * @throws \Doctrine\DBAL\Types\ConversionException
      */
-    private function value(EntityManagerInterface $entityManager, Type $type, $value)
+    private function value(EntityManagerInterface $entityManager, Type $type, mixed $value): mixed
     {
         if (null === $value) {
             return null;
@@ -82,7 +76,7 @@ trait AuditTrait
 
         $platform = $entityManager->getConnection()->getDatabasePlatform();
 
-        switch ($type->getName()) {
+        switch (array_search($type::class, Type::getTypesMap(), true)) {
             case DoctrineHelper::getDoctrineType('BIGINT'):
                 $convertedValue = (string) $value;  // @phpstan-ignore-line
 
@@ -206,7 +200,7 @@ trait AuditTrait
         if (method_exists($entity, '__toString')) {
             try {
                 $label = (string) $entity;
-            } catch (Throwable $throwable) {
+            } catch (Throwable) {
                 $label = DoctrineHelper::getRealClassName($entity).(null === $pkValue ? '' : '#'.$pkValue);
             }
         } else {
@@ -227,6 +221,8 @@ trait AuditTrait
 
     /**
      * Blames an audit operation.
+     *
+     * @return array{client_ip: null|string, user_firewall: null|string, user_fqdn: null|string, user_id: null|string, username: null|string}
      */
     private function blame(): array
     {
